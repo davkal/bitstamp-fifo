@@ -1,6 +1,6 @@
-# Bitsamp FIFO Gain/Loss calculator
+# Bitstamp FIFO Gain/Loss calculator
 
-FIFO-based accounting for Bitsamp transaction files to calculate year gain/loss for tax purposes.
+FIFO-based accounting for [Bitstamp](https://bitstamp.net) transaction files to calculate year gain/loss for tax purposes.
 Does not support tax-free year-long holdings.
 
 ## Setup
