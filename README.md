@@ -16,3 +16,8 @@ Requires python 2.7
 - Distinguishes between different cryto currencies
 - Assumes all transactions are done in same fiat currency (e.g., EUR)
 - No detection of year-long holdings
+- Only works for transactions started in the first year.
+
+## TODO
+
+- [ ] Support for arbitrary date ranges
