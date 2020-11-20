@@ -9,15 +9,10 @@ Requires python 2.7
 
 1. Clone repo
 2. Download `Transactions.csv` into cloned repo.
-3. Run `python bitstamp_fifo.py`
+3. Run `python bitstamp_fifo.py <file> <tax-year>`
 
 ## Notes
 
 - Distinguishes between different cryto currencies
 - Assumes all transactions are done in same fiat currency (e.g., EUR)
 - No detection of year-long holdings
-- Only works for transactions started in the first year.
-
-## TODO
-
-- [ ] Support for arbitrary date ranges
