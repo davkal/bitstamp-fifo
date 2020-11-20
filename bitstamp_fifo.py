@@ -30,22 +30,23 @@ def consume(holdings, transaction):
     cost = transaction.fee
     while transaction.amount > ZERO_GUARD:
         holding = holdings[0]
-        if transaction.amount > holding.amount:
+        if transaction.amount >= holding.amount:
             # consume holding fully
             cost += holding.amount * holding.spot_price + holding.fee
             transaction.amount -= holding.amount
             holdings.popleft()
         else:
             # consume holding partially, adding only partial fee to cost
-            fee = holding.amount / holding.initial_amount * holding.fee
+            fee = transaction.amount / holding.initial_amount * holding.fee
             cost += transaction.amount * holding.spot_price + fee
             holding.amount -= transaction.amount
+            holding.fee -= fee
             # holding was bigger than transaction, nothing left to do
             break
     return price - cost
 
 
-def process_transactions(filename):
+def process_transactions(filename, holdings, requested_year):
     # Gain/loss after sales
     gain = 0
 
@@ -55,29 +56,37 @@ def process_transactions(filename):
             if 'Amount' not in row:
                 print('Given file does not look like a Bitstamp transactions file.')
                 exit(1)
+            if row['Type'] != 'Market':
+                continue
             amount, symbol = row['Amount'].split(' ')
-            if symbol not in all_holdings:
-                all_holdings[symbol] = deque([])
+            if symbol not in holdings:
+                holdings[symbol] = deque([])
             # assuming same currency on all transactions
+            holding = holdings[symbol]
             spot_price, _ = row['Rate'].split(' ')
             fee = row['Fee'].split(' ')[0] if row['Fee'] else 0
             transaction = Transaction(amount, symbol, spot_price, fee)
             if row['Sub Type'] == 'Buy':
-                all_holdings[symbol].append(transaction)
+                holding.append(transaction)
             elif row['Sub Type'] == 'Sell':
-                margin = consume(all_holdings[symbol], transaction)
-                gain += margin
-                print('Sold %s with %f gain' % (symbol, margin))
+                margin = consume(holding, transaction)
+                _, year, _ = row['Datetime'].split(', ')
+                if (year and year == requested_year):
+                    gain += margin
+                    print('"%s",Sell,%s,%s,%s,%f' %
+                          (row['Datetime'], symbol, amount, spot_price, margin))
     print('Summary gain (negative is loss): %f' % gain)
+    return gain
 
 
 def main():
     filename = sys.argv[1] if len(sys.argv) > 1 else 'Transactions.csv'
+    year = sys.argv[2]
     if path.isfile(filename):
-        process_transactions(filename)
+        process_transactions(filename, all_holdings, year)
     else:
         print('Could not find transaction file.')
-        print('Usage: python bitstamp_fifo.py <Transaction.csv>')
+        print('Usage: python bitstamp_fifo.py <Transaction.csv> <year>')
         exit(1)
 
 
