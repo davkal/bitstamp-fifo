@@ -18,6 +18,7 @@ class Transaction:
         self.symbol = symbol
         self.spot_price = round(float(spot_price), 8)
         self.fee = float(fee)
+        self.initial_fee = self.fee
 
     def __repr__(self):
         return '%f %s' % (self.amount, self.symbol)
@@ -32,12 +33,13 @@ def consume(holdings, transaction):
         holding = holdings[0]
         if transaction.amount >= holding.amount:
             # consume holding fully
-            cost += holding.amount * holding.spot_price + holding.fee
+            fee = holding.amount / holding.initial_amount * holding.initial_fee
+            cost += holding.amount * holding.spot_price + fee
             transaction.amount -= holding.amount
             holdings.popleft()
         else:
             # consume holding partially, adding only partial fee to cost
-            fee = transaction.amount / holding.initial_amount * holding.fee
+            fee = transaction.amount / holding.initial_amount * holding.initial_fee
             cost += transaction.amount * holding.spot_price + fee
             holding.amount -= transaction.amount
             holding.fee -= fee
@@ -49,6 +51,8 @@ def consume(holdings, transaction):
 def process_transactions(filename, holdings, requested_year):
     # Gain/loss after sales
     gain = 0
+    # Headers for CSV output
+    print('Date,Transaction,Symbol,Amount,Rate,Profit')
 
     with open(filename) as csvfile:
         transaction_reader = csv.DictReader(csvfile)
@@ -73,8 +77,10 @@ def process_transactions(filename, holdings, requested_year):
                 _, year, _ = row['Datetime'].split(', ')
                 if (year and year == requested_year):
                     gain += margin
+                    # CSV output row
                     print('"%s",Sell,%s,%s,%s,%f' %
                           (row['Datetime'], symbol, amount, spot_price, margin))
+
     print('Summary gain (negative is loss): %f' % gain)
     return gain
 

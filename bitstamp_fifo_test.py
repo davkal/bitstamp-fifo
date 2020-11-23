@@ -40,8 +40,9 @@ class TestFifo(unittest.TestCase):
         gain = process_transactions(
             'sample_transactions/sale_mixed_holding.csv', {}, '2018')
         first_sale = 8000-10-1000-10-2000-5
-        second_sale = 8000-10-2000-5
-        self.assertEqual(gain, first_sale+second_sale)
+        second_sale = 4000-10-1000-2.5
+        third_sale = 4000-10-1000-2.5
+        self.assertEqual(gain, first_sale+second_sale+third_sale)
 
     def test_sale_mixed_year_holding(self):
         gain = process_transactions(

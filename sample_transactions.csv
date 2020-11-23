@@ -1,4 +1,0 @@
-Type,Datetime,Account,Amount,Value,Rate,Fee,Sub Type
-Market,"Jan. 01, 2018, 01:27 PM",Main Account,2.0 BTC,2000.00 EUR,1000.00 EUR,10.00 EUR,Buy
-Market,"Jan. 04, 2018, 04:22 PM",Main Account,1 BTC,2000 EUR,2000.00 EUR,20.00 EUR,Buy
-Market,"Jan. 05, 2018, 04:27 AM",Main Account,1.5 BTC,2250.00 EUR,1500.00 EUR,15.00 EUR,Sell
