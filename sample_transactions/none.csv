@@ -1,1 +1,1 @@
-Type,Datetime,Account,Amount,Value,Rate,Fee,Sub Type
+Order Type,Pair,Price,Amount,Value,Closed

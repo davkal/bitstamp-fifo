@@ -54,32 +54,95 @@ def process_transactions(filename, holdings, requested_year):
     # Headers for CSV output
     print('Date,Transaction,Symbol,Amount,Rate,Profit')
 
+    # Read all transactions first
+    transactions = []
     with open(filename) as csvfile:
         transaction_reader = csv.DictReader(csvfile)
         for row in transaction_reader:
-            if 'Amount' not in row:
-                print('Given file does not look like a Bitstamp transactions file.')
+            # Check if this is the new format (CombinedOrders.csv style)
+            if 'Order Type' in row and 'Pair' in row:
+                # New format: Order Type,Pair,Price,Amount,Value,Closed
+                order_type = row['Order Type']
+                pair = row['Pair']
+                symbol = pair.split('/')[0]  # Extract symbol from pair like "BTC/EUR"
+                amount = row['Amount']
+                spot_price = row['Price']
+                fee = 0  # No fee information in new format
+                date_time = row['Closed']
+                
+                # Extract year from date format "2018-01-04 16:27:42"
+                year = date_time.split('-')[0]
+                
+                transactions.append({
+                    'order_type': order_type,
+                    'symbol': symbol,
+                    'amount': amount,
+                    'spot_price': spot_price,
+                    'fee': fee,
+                    'date_time': date_time,
+                    'year': year
+                })
+                
+            elif 'Amount' in row and 'Sub Type' in row:
+                # Old format: Type,Datetime,Account,Amount,Value,Rate,Fee,Sub Type
+                if row['Type'] != 'Market':
+                    continue
+                amount_with_symbol = row['Amount']
+                if ' ' not in amount_with_symbol:
+                    continue
+                amount, symbol = amount_with_symbol.split(' ')
+                spot_price, _ = row['Rate'].split(' ')
+                fee = row['Fee'].split(' ')[0] if row['Fee'] else 0
+                order_type = row['Sub Type']
+                date_time = row['Datetime']
+                
+                # Extract year from date format "Jan. 04, 2018, 04:22 PM"
+                _, year, _ = date_time.split(', ')
+                
+                transactions.append({
+                    'order_type': order_type,
+                    'symbol': symbol,
+                    'amount': amount,
+                    'spot_price': spot_price,
+                    'fee': fee,
+                    'date_time': date_time,
+                    'year': year
+                })
+                
+            else:
+                print('Given file does not look like a supported transactions file.')
                 exit(1)
-            if row['Type'] != 'Market':
-                continue
-            amount, symbol = row['Amount'].split(' ')
-            if symbol not in holdings:
-                holdings[symbol] = deque([])
-            # assuming same currency on all transactions
-            holding = holdings[symbol]
-            spot_price, _ = row['Rate'].split(' ')
-            fee = row['Fee'].split(' ')[0] if row['Fee'] else 0
-            transaction = Transaction(amount, symbol, spot_price, fee)
-            if row['Sub Type'] == 'Buy':
-                holding.append(transaction)
-            elif row['Sub Type'] == 'Sell':
-                margin = consume(holding, transaction)
-                _, year, _ = row['Datetime'].split(', ')
-                if (year and year == requested_year):
-                    gain += margin
-                    # CSV output row
-                    print('"%s",Sell,%s,%s,%s,%f' %
-                          (row['Datetime'], symbol, amount, spot_price, margin))
+    
+    # Sort transactions by date (oldest first)
+    def parse_date(date_str):
+        if '-' in date_str and len(date_str.split('-')[0]) == 4:
+            # New format: "2018-01-04 16:27:42"
+            from datetime import datetime
+            return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+        else:
+            # Old format: "Jan. 04, 2018, 04:22 PM"
+            from datetime import datetime
+            return datetime.strptime(date_str, '%b. %d, %Y, %I:%M %p')
+    
+    transactions.sort(key=lambda x: parse_date(x['date_time']))
+    
+    # Process sorted transactions
+    for tx in transactions:
+        symbol = tx['symbol']
+        if symbol not in holdings:
+            holdings[symbol] = deque([])
+        holding = holdings[symbol]
+        transaction = Transaction(tx['amount'], symbol, tx['spot_price'], tx['fee'])
+        
+        if tx['order_type'] == 'Buy':
+            holding.append(transaction)
+        elif tx['order_type'] == 'Sell':
+            margin = consume(holding, transaction)
+            if (tx['year'] and tx['year'] == requested_year):
+                gain += margin
+                # CSV output row
+                print('"%s",Sell,%s,%s,%s,%f' %
+                      (tx['date_time'], symbol, tx['amount'], tx['spot_price'], margin))
 
     print('Summary gain (negative is loss): %f' % gain)
     return gain
