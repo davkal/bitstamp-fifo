@@ -57,29 +57,63 @@ def process_transactions(filename, holdings, requested_year):
     with open(filename) as csvfile:
         transaction_reader = csv.DictReader(csvfile)
         for row in transaction_reader:
-            if 'Amount' not in row:
-                print('Given file does not look like a Bitstamp transactions file.')
-                exit(1)
-            if row['Type'] != 'Market':
-                continue
-            amount, symbol = row['Amount'].split(' ')
-            if symbol not in holdings:
-                holdings[symbol] = deque([])
-            # assuming same currency on all transactions
-            holding = holdings[symbol]
-            spot_price, _ = row['Rate'].split(' ')
-            fee = row['Fee'].split(' ')[0] if row['Fee'] else 0
-            transaction = Transaction(amount, symbol, spot_price, fee)
-            if row['Sub Type'] == 'Buy':
-                holding.append(transaction)
-            elif row['Sub Type'] == 'Sell':
-                margin = consume(holding, transaction)
-                _, year, _ = row['Datetime'].split(', ')
-                if (year and year == requested_year):
-                    gain += margin
-                    # CSV output row
-                    print('"%s",Sell,%s,%s,%s,%f' %
-                          (row['Datetime'], symbol, amount, spot_price, margin))
+            # Check for new format first (has Amount currency column)
+            if 'Amount currency' in row:
+                # New format
+                if 'Amount' not in row:
+                    print('Given file does not look like a Bitstamp transactions file.')
+                    exit(1)
+                if row['Type'] != 'Market':
+                    continue
+                
+                amount = row['Amount']
+                symbol = row['Amount currency']
+                if symbol not in holdings:
+                    holdings[symbol] = deque([])
+                
+                holding = holdings[symbol]
+                spot_price = row['Rate']
+                fee = row['Fee'] if row['Fee'] else 0
+                transaction = Transaction(amount, symbol, spot_price, fee)
+                
+                if row['Subtype'] == 'Buy':
+                    holding.append(transaction)
+                elif row['Subtype'] == 'Sell':
+                    margin = consume(holding, transaction)
+                    # Parse ISO datetime format to extract year
+                    datetime_str = row['Datetime']
+                    if datetime_str:
+                        year = datetime_str.split('-')[0]  # Extract year from ISO format
+                        if year == requested_year:
+                            gain += margin
+                            # CSV output row
+                            print('"%s",Sell,%s,%s,%s,%f' %
+                                  (row['Datetime'], symbol, amount, spot_price, margin))
+            else:
+                # Old format (legacy support)
+                if 'Amount' not in row:
+                    print('Given file does not look like a Bitstamp transactions file.')
+                    exit(1)
+                if row['Type'] != 'Market':
+                    continue
+                amount, symbol = row['Amount'].split(' ')
+                if symbol not in holdings:
+                    holdings[symbol] = deque([])
+                # assuming same currency on all transactions
+                holding = holdings[symbol]
+                spot_price, _ = row['Rate'].split(' ')
+                fee = row['Fee'].split(' ')[0] if row['Fee'] else 0
+                transaction = Transaction(amount, symbol, spot_price, fee)
+                if row['Sub Type'] == 'Buy':
+                    holding.append(transaction)
+                elif row['Sub Type'] == 'Sell':
+                    margin = consume(holding, transaction)
+                    _, year, _ = row['Datetime'].split(', ')
+                    if (year and year == requested_year):
+                        gain += margin
+                        # CSV output row
+                        print('"%s",Sell,%s,%s,%s,%f' %
+                              (row['Datetime'], symbol, amount, spot_price, margin))
 
     print('Summary gain (negative is loss): %f' % gain)
     return gain
